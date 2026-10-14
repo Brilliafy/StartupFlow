@@ -1,0 +1,15 @@
+{
+  "package": "com.cleanroommc.startupflow.mixin",
+  "required": true,
+  "refmap": "mixins.startupflow.refmap.json",
+  "target": "@env(DEFAULT)",
+  "compatibilityLevel": "JAVA_8",
+  "minVersion": "0.8.5",
+  "mixins": [],
+  "client": [
+    "ModelLoaderMixin",
+    "ModelLoaderRegistryAccessor",
+    "TextureAtlasSpriteMixin"
+  ],
+  "server": []
+}
