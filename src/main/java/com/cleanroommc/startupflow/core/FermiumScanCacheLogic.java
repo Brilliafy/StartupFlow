@@ -13,6 +13,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -306,9 +307,10 @@ public final class FermiumScanCacheLogic {
         }
 
         if (BOOTER_CONFIG.isFile()) {
+            // FermiumBooter rewrites this config on every launch, so its size/mtime change even when
+            // the contents are identical. Hash the bytes so a stable config keeps the cache valid.
             update(digest, BOOTER_CONFIG.getName());
-            update(digest, Long.toString(BOOTER_CONFIG.length()));
-            update(digest, Long.toString(BOOTER_CONFIG.lastModified()));
+            update(digest, contentHash(BOOTER_CONFIG));
         }
 
         byte[] hash = digest.digest();
@@ -340,5 +342,15 @@ public final class FermiumScanCacheLogic {
     private static void update(MessageDigest digest, String value) {
         digest.update(value.getBytes(StandardCharsets.UTF_8));
         digest.update((byte) 0);
+    }
+
+    private static String contentHash(File file) throws Exception {
+        byte[] hash = MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file.toPath()));
+        StringBuilder builder = new StringBuilder(hash.length * 2);
+        for (byte b : hash) {
+            builder.append(Character.forDigit((b >> 4) & 0xF, 16));
+            builder.append(Character.forDigit(b & 0xF, 16));
+        }
+        return builder.toString();
     }
 }
