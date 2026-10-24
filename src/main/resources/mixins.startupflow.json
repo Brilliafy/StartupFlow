@@ -5,6 +5,7 @@
   "target": "@env(DEFAULT)",
   "compatibilityLevel": "JAVA_8",
   "minVersion": "0.8.5",
+  "plugin": "com.cleanroommc.startupflow.mixin.StartupFlowMixinPlugin",
   "mixins": [],
   "client": [
     "ModelLoaderMixin",

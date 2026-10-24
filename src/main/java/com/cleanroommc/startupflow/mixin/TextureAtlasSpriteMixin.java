@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinWorkerThread;
 
 @Mixin(TextureAtlasSprite.class)
 public abstract class TextureAtlasSpriteMixin {
@@ -30,11 +31,29 @@ public abstract class TextureAtlasSpriteMixin {
     public abstract void setFramesTextureData(List<int[][]> newFramesTextureData);
 
     private static final float[] COLOR_GAMMAS = new float[256];
+    private static volatile ForkJoinPool mipmapPool;
 
     static {
         for (int i = 0; i < 256; ++i) {
             COLOR_GAMMAS[i] = (float) Math.pow((double) i / 255.0, 2.2);
         }
+    }
+
+    private static ForkJoinPool getMipmapPool() {
+        if (mipmapPool == null) {
+            synchronized (TextureAtlasSpriteMixin.class) {
+                if (mipmapPool == null) {
+                    int threads = ModConfig.getEffectiveMipmapThreads();
+                    mipmapPool = new ForkJoinPool(threads, pool -> {
+                        ForkJoinWorkerThread worker = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
+                        worker.setName("StartupFlow-Mipmap-" + worker.getPoolIndex());
+                        worker.setDaemon(true);
+                        return worker;
+                    }, null, false);
+                }
+            }
+        }
+        return mipmapPool;
     }
 
     /**
@@ -52,18 +71,22 @@ public abstract class TextureAtlasSpriteMixin {
         int[][][] generated = new int[frameCount][][];
 
         if (frameCount > 1) {
-            ForkJoinPool.commonPool().submit(() ->
-                    java.util.stream.IntStream.range(0, frameCount).parallel().forEach(i -> {
-                        int[][] aint = this.framesTextureData.get(i);
-                        if (aint != null) {
-                            try {
-                                generated[i] = faststartup$generateMipmapDataFast(level, this.width, aint);
-                            } catch (Throwable t) {
-                                faststartup$handleMipmapCrash(t, i);
+            try {
+                getMipmapPool().submit(() ->
+                        java.util.stream.IntStream.range(0, frameCount).parallel().forEach(i -> {
+                            int[][] aint = this.framesTextureData.get(i);
+                            if (aint != null) {
+                                try {
+                                    generated[i] = faststartup$generateMipmapDataFast(level, this.width, aint);
+                                } catch (Throwable t) {
+                                    faststartup$handleMipmapCrash(t, i);
+                                }
                             }
-                        }
-                    })
-            ).join();
+                        })
+                ).get();
+            } catch (Throwable t) {
+                faststartup$handleMipmapCrash(t, 0);
+            }
         } else {
             int[][] aint = this.framesTextureData.get(0);
             if (aint != null) {

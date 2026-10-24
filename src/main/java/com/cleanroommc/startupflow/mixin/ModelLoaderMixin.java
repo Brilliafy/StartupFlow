@@ -16,7 +16,6 @@ import net.minecraftforge.client.model.IModel;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.client.model.ModelLoaderRegistry;
 import net.minecraftforge.fml.client.FMLClientHandler;
-import net.minecraftforge.fml.common.ProgressManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -76,11 +75,7 @@ public abstract class ModelLoaderMixin extends ModelBakery {
         HashMultimap<IModel, ModelResourceLocation> models = HashMultimap.create();
         Multimaps.invertFrom(Multimaps.forMap(this.stateModels), models);
 
-        ProgressManager.ProgressBar bakeBar = ProgressManager.push("ModelLoader: parallel baking", models.keySet().size(), false);
-
-        ParallelModelBaker.bakeModelsInParallel(models, bakedModels, this.missingModel, missingBaked, bakeBar);
-
-        ProgressManager.pop(bakeBar);
+        ParallelModelBaker.bakeModelsInParallel(models, bakedModels, this.missingModel, missingBaked);
 
         for (Map.Entry<ModelResourceLocation, IModel> entry : this.stateModels.entrySet()) {
             IBakedModel baked = bakedModels.get(entry.getValue());

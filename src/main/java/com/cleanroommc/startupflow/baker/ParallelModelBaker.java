@@ -22,8 +22,7 @@ public class ParallelModelBaker {
             Multimap<IModel, ModelResourceLocation> models,
             Map<IModel, IBakedModel> bakedModels,
             IModel missingModel,
-            IBakedModel missingBaked,
-            ProgressManager.ProgressBar bakeBar) {
+            IBakedModel missingBaked) {
 
         int totalModels = models.keySet().size();
         if (totalModels == 0) {
@@ -36,6 +35,10 @@ public class ParallelModelBaker {
         long startTime = System.currentTimeMillis();
         AtomicInteger counter = new AtomicInteger(0);
 
+        final int stepInterval = 150;
+        final int totalSteps = Math.max(1, (totalModels + stepInterval - 1) / stepInterval);
+        ProgressManager.ProgressBar bakeBar = ProgressManager.push("ModelLoader: parallel baking", totalSteps, false);
+
         ForkJoinPool bakerPool = new ForkJoinPool(threads, pool -> {
             ForkJoinWorkerThread worker = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
             worker.setName("StartupFlow-Baker-" + worker.getPoolIndex());
@@ -46,9 +49,11 @@ public class ParallelModelBaker {
         try {
             bakerPool.submit(() -> models.keySet().parallelStream().forEach(iModel -> {
                 int current = counter.incrementAndGet();
-                if (current % 150 == 0 || current == totalModels) {
+                if (current % stepInterval == 0 || current == totalModels) {
                     synchronized (bakeBar) {
-                        bakeBar.step("Baking: " + current + "/" + totalModels);
+                        if (bakeBar.getStep() < bakeBar.getSteps()) {
+                            bakeBar.step("Baking: " + current + "/" + totalModels);
+                        }
                     }
                 }
 
@@ -79,6 +84,12 @@ public class ParallelModelBaker {
             FMLLog.log.error("[StartupFlow] Error during parallel model baking", e);
         } finally {
             bakerPool.shutdown();
+            synchronized (bakeBar) {
+                while (bakeBar.getStep() < bakeBar.getSteps()) {
+                    bakeBar.step("Baking: " + totalModels + "/" + totalModels);
+                }
+            }
+            ProgressManager.pop(bakeBar);
         }
 
         long elapsed = System.currentTimeMillis() - startTime;

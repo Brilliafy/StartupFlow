@@ -47,9 +47,9 @@ public class StartupFlowCorePlugin implements IFMLLoadingPlugin {
         try {
             scannerClass = Class.forName(SCANNER_CLASS);
             populatedFromCache = FermiumScanCacheLogic.tryPopulateFromCache(scannerClass, LOGGER);
+        } catch (ClassNotFoundException ignored) {
+            // FermiumBooter is not installed or not on the classpath at constructor time; injectData will check
         } catch (Throwable t) {
-            // FermiumBooter's jar might not be on the classpath yet, or there is no cache yet.
-            // Either way injectData below will sort it out.
             LOGGER.debug("[FermiumScanCache] Constructor-stage cache load skipped: {}", t.toString());
         }
     }
@@ -81,7 +81,12 @@ public class StartupFlowCorePlugin implements IFMLLoadingPlugin {
         }
         try {
             if (scannerClass == null) {
-                scannerClass = Class.forName(SCANNER_CLASS);
+                try {
+                    scannerClass = Class.forName(SCANNER_CLASS);
+                } catch (ClassNotFoundException e) {
+                    LOGGER.info("[StartupFlow] FermiumBooter is not installed; jar scan caching is disabled.");
+                    return;
+                }
             }
 
             if (populatedFromCache) {

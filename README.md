@@ -81,9 +81,14 @@ The cache itself has no config entry. Use the flag or marker file described abov
 
 ## Notes and limitations
 
-- The first launch after installing the mod, or after any change to your mods folder, still runs the
-  full scan. Every launch after that skips it.
+- The first launch after installing the mod, or after any change to your mods folder (including `mods/1.12.2`),
+  still runs the full scan. Every launch after that skips it.
 - The cache stores mod ids and mixin toggle data only. It does not cache chunk or texture data.
+- **OptiFine Compatibility**: OptiFine is automatically detected. If present, StartupFlow disables its texture atlas
+  mipmap mixin so OptiFine's custom texture/shader pipeline runs completely untouched.
+- **VintageFix Compatibility**: If VintageFix is present with `dynamic_resources` enabled, block and item models
+  are loaded on-demand by VintageFix during gameplay. StartupFlow's model baker safely stands by, while FermiumBooter
+  scan caching and optimizations continue working as intended.
 
 ## Credits
 

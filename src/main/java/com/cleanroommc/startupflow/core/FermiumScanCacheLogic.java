@@ -286,23 +286,21 @@ public final class FermiumScanCacheLogic {
     }
 
     /**
-     * Fingerprint of everything the scan result depends on: the contents of {@code mods/} (names, sizes
-     * and mtimes) plus FermiumBooter's own config file. Any mod add/remove/update invalidates the cache.
+     * Fingerprint of everything the scan result depends on: the contents of {@code mods/} (names, paths,
+     * sizes and mtimes, including subdirectories such as {@code mods/1.12.2}) plus FermiumBooter's own
+     * config file. Any mod add/remove/update invalidates the cache.
      */
     private static String fingerprint() throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
         File modsDir = new File("mods");
-        File[] files = modsDir.listFiles();
-        if (files == null) {
-            files = new File[0];
+        List<File> files = new ArrayList<>();
+        if (modsDir.isDirectory()) {
+            collectModFiles(modsDir, files);
         }
-        Arrays.sort(files, Comparator.comparing(File::getName));
+        files.sort(Comparator.comparing(File::getPath));
         for (File file : files) {
-            if (!file.isFile()) {
-                continue;
-            }
-            update(digest, file.getName());
+            update(digest, file.getPath().replace(File.separatorChar, '/'));
             update(digest, Long.toString(file.length()));
             update(digest, Long.toString(file.lastModified()));
         }
@@ -320,6 +318,23 @@ public final class FermiumScanCacheLogic {
             builder.append(Character.forDigit(b & 0xF, 16));
         }
         return builder.toString();
+    }
+
+    private static void collectModFiles(File dir, List<File> result) {
+        File[] files = dir.listFiles();
+        if (files == null) {
+            return;
+        }
+        for (File file : files) {
+            if (file.isDirectory()) {
+                collectModFiles(file, result);
+            } else if (file.isFile()) {
+                String name = file.getName().toLowerCase();
+                if (name.endsWith(".jar") || name.endsWith(".zip") || name.endsWith(".disabled")) {
+                    result.add(file);
+                }
+            }
+        }
     }
 
     private static void update(MessageDigest digest, String value) {
